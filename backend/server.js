@@ -5,47 +5,22 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import os from 'os';
 
 const app = express();
 const server = http.createServer(app);
 
-// Get network IP address automatically
-const getNetworkIp = () => {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const net of interfaces[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        if (net.address.startsWith('192.168.')) {
-          return net.address;
-        }
-      }
-    }
-  }
-  return 'localhost';
-};
-
-const NETWORK_IP = getNetworkIp();
-const PORT = 5000;
-// Allow multiple origins including your domain
+// Dynamic CORS for production
 const ALLOWED_ORIGINS = [
-  'http://msrvps.site',
+  'https://your-vercel-app.vercel.app', // Your Vercel frontend URL
   'https://msrvps.site',
-  'http://www.msrvps.site',
   'https://www.msrvps.site',
-  'http://localhost:8080',
-  'http://127.0.0.1:8080',
-  `http://${NETWORK_IP}:8080`
+  'http://localhost:3000',
+  'http://localhost:8080'
 ];
 
-console.log('Network IP:', NETWORK_IP);
-console.log('Allowed origins:', ALLOWED_ORIGINS);
-
-// Enhanced CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
     
     if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
@@ -73,36 +48,10 @@ const io = new Server(server, {
 
 app.use(express.json());
 
-// User storage file
-const USERS_FILE = './users.json';
-
-// Load users from JSON file
-const loadUsers = () => {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf8');
-      return new Map(JSON.parse(data));
-    }
-  } catch (error) {
-    console.error('Error loading users:', error);
-  }
-  return new Map();
-};
-
-// Save users to JSON file
-const saveUsers = (users) => {
-  try {
-    const data = JSON.stringify(Array.from(users.entries()));
-    fs.writeFileSync(USERS_FILE, data, 'utf8');
-  } catch (error) {
-    console.error('Error saving users:', error);
-  }
-};
-
-// Initialize users
-const users = loadUsers();
+// In-memory storage (for demo - use database in production)
+const users = new Map();
 const onlineUsers = new Map();
-const JWT_SECRET = 'video-call-app-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'video-call-app-secret-key';
 
 // Auth middleware
 const authenticateToken = (req, res, next) => {
@@ -128,7 +77,6 @@ app.post('/api/register', async (req, res) => {
     const { name, email, password } = req.body;
     
     console.log('Registration attempt from:', req.headers.origin);
-    console.log('Registration details:', { email, name });
     
     if (users.has(email)) {
       return res.status(400).json({ error: 'User already exists' });
@@ -144,8 +92,6 @@ app.post('/api/register', async (req, res) => {
     };
 
     users.set(email, user);
-    saveUsers(users);
-    
     console.log('User registered:', user.email);
 
     const token = jwt.sign(
@@ -214,18 +160,7 @@ app.get('/api/users', authenticateToken, (req, res) => {
       isOnline: true
     }));
 
-  // Get offline users from stored data
-  const offlineUsers = Array.from(users.values())
-    .filter(user => user.id !== req.user.id)
-    .filter(user => !onlineUsers.has(user.id))
-    .map(user => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      isOnline: false
-    }));
-
-  res.json([...onlineUsersList, ...offlineUsers]);
+  res.json(onlineUsersList);
 });
 
 // Health check endpoint
@@ -233,18 +168,7 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Server is running',
-    origin: req.headers.origin,
-    allowedOrigins: ALLOWED_ORIGINS
-  });
-});
-
-// Get server info
-app.get('/api/info', (req, res) => {
-  res.json({
-    networkIp: NETWORK_IP,
-    port: PORT,
-    allowedOrigins: ALLOWED_ORIGINS,
-    backendUrl: `http://${NETWORK_IP}:${PORT}`
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -312,8 +236,8 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
   console.log(`?? Server running on port ${PORT}`);
   console.log(`?? Allowed origins:`, ALLOWED_ORIGINS);
-  console.log(`?? User data stored in: ${USERS_FILE}`);
 });

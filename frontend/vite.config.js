@@ -4,17 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 8080,
-    host: true,
-    allowedHosts: [
-      'msrvps.site',
-      'www.msrvps.site',
-      'localhost',
-      '127.0.0.1'
-    ]
+    port: 3000,
+    host: true
   },
   build: {
-    outDir: 'dist',
-    sourcemap: false
+    outDir: 'dist'
   }
 })

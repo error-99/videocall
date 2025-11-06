@@ -3,17 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import io from 'socket.io-client';
 
-// Get the current hostname for dynamic backend URL
-const getBackendUrl = () => {
-  const hostname = window.location.hostname;
-  const port = 5000;
-  return `http://${hostname}:${port}`;
-};
+// Backend URL - Replace with your deployed backend URL
+const BACKEND_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-backend-url.railway.app'  // Replace with your actual backend URL
+  : 'http://localhost:5000';
 
-const API_BASE_URL = `${getBackendUrl()}/api`;
-const SOCKET_URL = getBackendUrl();
+const API_BASE_URL = `${BACKEND_URL}/api`;
+const SOCKET_URL = BACKEND_URL;
 
-console.log('Backend URL:', API_BASE_URL);
+console.log('Environment:', process.env.NODE_ENV);
+console.log('Backend URL:', BACKEND_URL);
 
 // Simple custom components
 const Button = ({ children, className = "", variant = "default", size = "default", ...props }) => {
@@ -148,14 +147,14 @@ export default function VideoCallingApp() {
   useEffect(() => {
     const fetchServerInfo = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/info`);
+        const response = await fetch(`${API_BASE_URL}/health`);
         if (response.ok) {
           const info = await response.json();
           setServerInfo(info);
           console.log('Server info:', info);
         }
       } catch (error) {
-        console.log('Could not fetch server info, using default URL');
+        console.log('Could not fetch server info');
       }
     };
     fetchServerInfo();
@@ -518,7 +517,7 @@ export default function VideoCallingApp() {
             </p>
             {serverInfo && (
               <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
-                Server: {serverInfo.backendUrl}
+                Server: {BACKEND_URL}
               </div>
             )}
           </CardHeader>
@@ -728,7 +727,7 @@ export default function VideoCallingApp() {
                   </Button>
                   {serverInfo && (
                     <div className="text-xs text-gray-500 mt-4">
-                      Connected to: {serverInfo.backendUrl}
+                      Connected to: {BACKEND_URL}
                     </div>
                   )}
                 </div>
