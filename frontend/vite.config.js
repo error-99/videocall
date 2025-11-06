@@ -9,5 +9,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist'
+  },
+  // Add this for Vercel
+  define: {
+    'process.env': process.env
   }
 })
